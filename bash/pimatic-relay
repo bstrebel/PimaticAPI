@@ -1,0 +1,41 @@
+#!/bin/bash
+#
+# toggle relay switch
+#
+# set -x
+
+# pimatic root directory with config.json
+[ "$PIMATIC_ROOT" ] || PIMATIC_ROOT=$( pwd )
+
+# device id magic ...
+[ "$1" ] && ID="$1" || exit 1
+DEV=${ID%_*}
+
+# return off in case of missing state file
+[ -f $PIMATIC_ROOT/$ID ] && STATE=$( cat $PIMATIC_ROOT/$ID ) || STATE=0
+[ "$2" ] && OP="$2" || { echo $STATE ; exit 0 ; }
+
+# nothing to do, initialization after reboot
+[ "$OP" == "$STATE" ] && exit 0
+
+# just toggle switch state if called via buttonPressed
+[ "$OP" == "buttonPressed" ] && {
+	[ "$STATE" == "1" ] && OP=0 || OP=1
+	echo $OP >$PIMATIC_ROOT/$ID && exit 0
+}
+
+[ -f /usr/local/lib/pimatic.incl ] && source /usr/local/lib/pimatic.incl || source pimatic.incl
+
+# check device class
+set -- $(pimatic_get /api/devices/$DEV | jq -rj '.device.config.class, " ", .success' ) || exit 4
+CLASS="$1" ; RESULT="$2"
+
+# don't call buttonPressed for (virtual) non-rf ButtonsDevice
+[ "$CLASS" == "ButtonsDevice" ] || {
+	RESULT=$(pimatic_get /api/device/$DEV/buttonPressed?buttonId=$ID | jq -r '.success' ) || exit 5
+}
+
+[ "$RESULT" == "true" ] && echo $OP >$PIMATIC_ROOT/$ID && exit 0
+
+exit 6
+

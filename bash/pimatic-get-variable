@@ -1,0 +1,9 @@
+#!/bin/bash
+[ "$1" ] && VAR="$1" || exit
+source /usr/local/etc/pimatic.conf || exit
+source /usr/local/lib/pimatic.incl || exit
+RESPONSE=$(pimatic_get /api/variables/$VAR) || exit
+RESULT=$(echo $RESPONSE | jq -r '.success')
+[ "$RESULT" == "true" ] && VALUE=$(echo $RESPONSE | jq -r '.variable.value') || VALUE=""
+[ "$VALUE" == "null"  ] && VALUE="" 
+echo $VALUE

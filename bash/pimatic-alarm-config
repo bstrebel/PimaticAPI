@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# check and update pimatic alarm configuration
+#
+# set -x
+
+
+for incl in . ../lib /usr/local/lib
+do
+    [ -f $incl/pimatic.incl ] && { source $incl/pimatic.incl ; break ; }
+done
+
+ALARM="switch_alarm_system"
+CHECK="rule_alarm-check"
+RULE="if button_alarm_check is pressed"
+
+# try to turn off alarm system
+RESULT=$(pimatic_get /api/device/switch_alarm_system/turnOff | jq -r '.success') || exit
+echo # print new line
+
+# loop over all *ContactSensor devices
+for sensor in $(pimatic_get /api/devices | jq -r '.devices | map(select(.config.class |contains("ContactSensor")))[].id')
+do
+	case "$sensor" in
+		contact_*) # process only contact_ devices
+			# state mapping: true => closed, false => opened
+			state=$(pimatic_get /api/devices/$sensor | jq -r '.device.attributes | map(select(.name == "contact"))[0].value')
+			device=${sensor/contact_/}
+
+			echo $device : $state
+	
+			[ "$state" == "true" ] && RULE="$RULE and $sensor is closed"
+			for prefix in alert locked unlock
+			do
+				rule="rule_alarm-${prefix}-${device//_/-}"
+				RESULT=$(pimatic_patch /api/rules/$rule "{\"rule\": {\"active\": \"$state\"}}" | jq -r '.success') || exit
+				[ "$RESULT" == "true" ] || exit
+				# echo "$rule: $RESULT"
+			done
+			;;
+		*)
+			echo $device: skipped
+			;;
+	esac
+done
+
+RULE="$RULE then set \$alarmLocked = 0 and log \\\"Alarm system unlocked!\\\""
+#echo $RULE
+
+# update rule_alarm-check
+RESULT=$(pimatic_patch /api/rules/$CHECK "{\"rule\": {\"ruleString\": \"$RULE\"}}" | jq -r '.success') || exit
+[ "$RESULT" == "true" ] || exit
+
+# clear $alarmLocked 
+RESULT=$(pimatic_patch /api/variables/alarmLocked '{"type": "value", "valueOrExpression": "0"}' | jq -r '.success') || exit
+[ "$RESULT" == "true" ] || exit
+
