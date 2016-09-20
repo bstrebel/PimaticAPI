@@ -94,9 +94,11 @@ class PimaticAPI(object):
         self._offline = False
         return self._response(response)
 
-
     def get(self, path):
         return self._request(requests.get, path)
+
+    def delete(self, path):
+        return self._request(requests.delete, path)
 
     def post(self, path, data=None):
         if data:
