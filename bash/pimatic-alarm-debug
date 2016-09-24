@@ -14,8 +14,8 @@ DEBUG_UNITCODE=2
 
 case "$1" in
 
-    on|ON|enable|debug)     HOUSECODE=$DEBUG_HOUSECODE ; UNITCODE=$DEBUG_UNITCODE ;;
-    off|OFF|disable|alarm)  HOUSECODE=$ALARM_HOUSECODE ; UNITCODE=$ALARM_UNITCODE ;;
+    on|ON|enable|debug)     HOUSECODE=$DEBUG_HOUSECODE ; UNITCODE=$DEBUG_UNITCODE ; MESSAGE="debug enabled" ;;
+    off|OFF|disable|alarm)  HOUSECODE=$ALARM_HOUSECODE ; UNITCODE=$ALARM_UNITCODE ; MESSAGE="alarm enabled" ;;
     *)                      echo "usage: pimatic-alarm-debug ON|OFF"
                             exit 1
                             ;;
@@ -26,6 +26,9 @@ do
     [ -f $incl/pimatic.incl ] && { source $incl/pimatic.incl ; break ; }
 done
 
+# turn alarm switch off
+pimatic_get /api/device/switch_alarm_sound/turnOff >/dev/null || exit
+
 DEVICE=$( pimatic_get /api/devices/$ALARM_DEVICE ) || exit
 NEW_CONFIG=$( echo $DEVICE | jq -r ".device.config" | jq -r ".protocols[0].options.houseCode = $HOUSECODE | .protocols[0].options.unitCode = $UNITCODE" ) || exit
-pimatic_patch /api/device-config "{\"deviceConfig\": $NEW_CONFIG}" && echo "SUCCESS" || echo "ERROR"
+RESULT=$( pimatic_patch /api/device-config "{\"deviceConfig\": $NEW_CONFIG}" ) && echo $MESSAGE || echo "ERROR"
