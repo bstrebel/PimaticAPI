@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#
+# pimatic alarm debug configuration: map switch_alarm_sound to another switch!
+#
+# set -x
+
+ALARM_DEVICE="switch_alarm_sound"
+
+ALARM_HOUSECODE=4
+ALARM_UNITCODE=16
+
+DEBUG_HOUSECODE=10
+DEBUG_UNITCODE=2
+
+case "$1" in
+
+    on|ON|enable|debug)     HOUSECODE=$DEBUG_HOUSECODE ; UNITCODE=$DEBUG_UNITCODE ;;
+    off|OFF|disable|alarm)  HOUSECODE=$ALARM_HOUSECODE ; UNITCODE=$ALARM_UNITCODE ;;
+    *)                      echo "usage: pimatic-alarm-debug ON|OFF"
+                            exit 1
+                            ;;
+ esac
+
+for incl in . ../lib /usr/local/lib
+do
+    [ -f $incl/pimatic.incl ] && { source $incl/pimatic.incl ; break ; }
+done
+
+DEVICE=$( pimatic_get /api/devices/$ALARM_DEVICE ) || exit
+NEW_CONFIG=$( echo $DEVICE | jq -r ".device.config" | jq -r ".protocols[0].options.houseCode = $HOUSECODE | .protocols[0].options.unitCode = $UNITCODE" ) || exit
+pimatic_patch /api/device-config "{\"deviceConfig\": $NEW_CONFIG}" && echo "SUCCESS" || echo "ERROR"
