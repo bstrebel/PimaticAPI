@@ -4,7 +4,6 @@
 #
 # set -x
 
-
 for incl in . ../lib /usr/local/lib
 do
     [ -f $incl/pimatic.incl ] && { source $incl/pimatic.incl ; break ; }
@@ -12,10 +11,19 @@ done
 
 ALARM="switch_alarm_system"
 CHECK="rule_alarm-check"
-RULE="if button_alarm_check is pressed"
+
+RESULT=$(pimatic_get /api/rules/$CHECK) || exit
+[ $(echo $RESULT | jq -r '.success') == 'true' ] || exit
+RULE_STRING=$(echo $RESULT | jq -r '.rule.string')
+# rule starts with 'when' since release 0.9
+RULE="${RULE_STRING%%pressed*} pressed"
+# rule syntax: when TRIGGER and if CONDITION and CONDITON
+RULE_AND=${RULE_STRING##*pressed }
+RULE_AND=${RULE2%% contact_*}
+RULE_THEN=${RULE_STRING##* then }
 
 # try to turn off alarm system
-RESULT=$(pimatic_get /api/device/switch_alarm_system/turnOff | jq -r '.success') || exit
+# RESULT=$(pimatic_get /api/device/switch_alarm_system/turnOff | jq -r '.success') || exit
 echo # print new line
 
 # loop over all *ContactSensor devices
@@ -28,8 +36,9 @@ do
 			device=${sensor/contact_/}
 
 			echo $device : $state
-	
-			[ "$state" == "true" ] && RULE="$RULE and $sensor is closed"
+			[ "$state" == "true" ] && RULE="$RULE $RULE_AND $sensor is closed"
+	        # strip optional 'if' after the first expression
+	        RULE_AND=${RULE_AND%% *}
 			for prefix in alert locked unlock
 			do
 				rule="rule_alarm-${prefix}-${device//_/-}"
@@ -44,8 +53,14 @@ do
 	esac
 done
 
-RULE="$RULE then set \$alarmLocked = 0 and log \\\"Alarm system unlocked!\\\""
-#echo $RULE
+#RULE="$RULE then set \$alarmLocked = 0 and log \\\"Alarm system unlocked!\\\""
+
+# mask variable names
+RULE_THEN=$(echo $RULE_THEN | sed 's/\$/\\$/')
+# mask quoted strings
+RULE="$RULE then `echo $RULE_THEN | sed 's/"/\\\\\\"/g'`"
+
+echo $RULE
 
 # update rule_alarm-check
 RESULT=$(pimatic_patch /api/rules/$CHECK "{\"rule\": {\"ruleString\": \"$RULE\"}}" | jq -r '.success') || exit
