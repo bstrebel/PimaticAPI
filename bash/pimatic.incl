@@ -10,7 +10,7 @@
 	PIMATIC_USER=$( jq -rj '.users | map(select(.role == "admin"))[0] | .username+":",.password' $PIMATIC_ROOT/config.json ) || exit 1
 }
 [ "$PIMATIC_PORT" ] || {
-	PIMATIC_PORT=$( jq '.settings.httpServer.port' config.json ) || exit 2
+	PIMATIC_PORT=$( jq '.settings.httpServer.port' $PIMATIC_ROOT/config.json ) || exit 2
 }
 [ "$PIMATIC_URL" ] || {
 	PIMATIC_URL="http://localhost:$PIMATIC_PORT"
@@ -20,42 +20,33 @@ function pimatic_get() {
 
 	local path="$1"
 
-	curl 	--silent \
-				--user "$PIMATIC_USER" \
-				--request GET ${PIMATIC_URL}${path}
+	RESULT="$( curl --silent --user "$PIMATIC_USER" --request GET ${PIMATIC_URL}${path} )" || return $?
+	echo "$RESULT" && [ $(echo $RESULT | jq -r '.success') == 'true' ] && return 0 || return 1
 }
 
 function pimatic_delete() {
 
 	local path="$1"
 
-	curl 	--silent \
-				--user "$PIMATIC_USER" \
-				--request DELETE ${PIMATIC_URL}${path}
+	RESULT=$( curl --silent --user "$PIMATIC_USER" --request DELETE ${PIMATIC_URL}${path} )
+	echo "$RESULT" && [ $(echo $RESULT | jq -r '.success') == 'true' ] && return 0 || return 1
 }
 
 function pimatic_post() {
 
 	local path="$1" data="$2"	
 	
-	curl 	--silent \
-				--user "$PIMATIC_USER" \
-				--header "Content-Type:application/json" \
-				--header "Accept:application/json" \
-				--request POST \
-				--data "$data" ${PIMATIC_URL}${path}
+	RESULT=$( curl --silent --user "$PIMATIC_USER" --header "Content-Type:application/json" --header "Accept:application/json" --request POST --data "$data" ${PIMATIC_URL}${path} )
+	echo "$RESULT" && [ $(echo $RESULT | jq -r '.success') == 'true' ] && return 0 || return 1
 }
 
 function pimatic_patch() {
 
 	local path="$1" data="$2"	
 	
-	curl 	--silent \
-				--user "$PIMATIC_USER" \
-				--header "Content-Type:application/json" \
-				--header "Accept:application/json" \
-				--request PATCH \
-				--data "$data" ${PIMATIC_URL}${path}
+	RESULT=$( curl --silent --user "$PIMATIC_USER"	--header "Content-Type:application/json" --header "Accept:application/json" --request PATCH	--data "$data" ${PIMATIC_URL}${path} )
+	echo "$RESULT" && [ $(echo $RESULT | jq -r '.success') == 'true' ] && return 0 || return 1
+
 }
 
 
