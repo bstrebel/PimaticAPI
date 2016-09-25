@@ -12,20 +12,17 @@ done
 ALARM="switch_alarm_system"
 CHECK="rule_alarm-check"
 
-RESULT=$(pimatic_get /api/rules/$CHECK) || exit
-[ $(echo $RESULT | jq -r '.success') == 'true' ] || exit
-RULE_STRING=$(echo $RESULT | jq -r '.rule.string')
+# turn off alarm system
+pimatic_get /api/device/$ALARM/turnOff >/dev/null || exit
+echo # print new line
+
+RULE_STRING=$( pimatic_get /api/rules/$CHECK | jq -r '.rule.string' ) || exit
 # rule starts with 'when' since release 0.9
 RULE="${RULE_STRING%% pressed*} pressed"
 # rule syntax: when TRIGGER and if CONDITION and CONDITON
 RULE_AND=${RULE_STRING##*pressed }
 RULE_AND=${RULE_AND%% contact_*}
-
 RULE_THEN=${RULE_STRING##* then }
-
-# try to turn off alarm system
-# RESULT=$(pimatic_get /api/device/switch_alarm_system/turnOff | jq -r '.success') || exit
-echo # print new line
 
 # loop over all *ContactSensor devices
 for sensor in $(pimatic_get /api/devices | jq -r '.devices | map(select(.config.class |contains("ContactSensor")))[].id')
@@ -43,9 +40,7 @@ do
 			for prefix in alert locked unlock
 			do
 				rule="rule_alarm-${prefix}-${device//_/-}"
-				RESULT=$(pimatic_patch /api/rules/$rule "{\"rule\": {\"active\": \"$state\"}}" | jq -r '.success') || exit
-				[ "$RESULT" == "true" ] || exit
-				# echo "$rule: $RESULT"
+				pimatic_patch /api/rules/$rule "{\"rule\": {\"active\": \"$state\"}}" >/dev/null || exit
 			done
 			;;
 		*)
@@ -54,17 +49,15 @@ do
 	esac
 done
 
-#RULE="$RULE then set \$alarmLocked = 0 and log \\\"Alarm system unlocked!\\\""
 
 # mask quoted strings in $RULE_THEN actions
+# RULE="$RULE then set \$alarmLocked = 0 and log \\\"Alarm system unlocked!\\\""
 RULE="$RULE then $(echo $RULE_THEN | sed 's/"/\\"/g')"
 # echo $RULE
 
 # update rule_alarm-check
-RESULT=$(pimatic_patch /api/rules/$CHECK "{\"rule\": {\"ruleString\": \"$RULE\"}}" | jq -r '.success') || exit
-[ "$RESULT" == "true" ] || exit
+pimatic_patch /api/rules/$CHECK "{\"rule\": {\"ruleString\": \"$RULE\"}}" >/dev/null || exit
 
 # clear $alarmLocked 
-RESULT=$(pimatic_patch /api/variables/alarmLocked '{"type": "value", "valueOrExpression": "0"}' | jq -r '.success') || exit
-[ "$RESULT" == "true" ] || exit
+pimatic_patch /api/variables/alarmLocked '{"type": "value", "valueOrExpression": "0"}' >/dev/null || exit
 
