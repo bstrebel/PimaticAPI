@@ -6,6 +6,8 @@ __author__ = 'Bernd Strebel'
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+from .session import PimaticAPI
+
 __all__ = [
 
     'PimaticAPI'

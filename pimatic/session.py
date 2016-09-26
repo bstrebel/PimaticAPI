@@ -22,6 +22,10 @@ class PimaticAPI(object):
         self._session = None
         self._cookies = None
         self._offline = None
+        self._response = None
+        self._content = None
+
+        self._devices = None
 
         if logger is None:
             self._logger = get_logger('pimatic', logging.DEBUG)
@@ -45,12 +49,23 @@ class PimaticAPI(object):
     @property
     def authenticated(self): return self._cookies is not None
 
-    def _response(self, response):
+    @property
+    def success(self): return ( self._response and self._response.get('success') == True )
+
+    @property
+    def response(self): return self._response
+
+    @property
+    def content(self): return self._content
+
+    def _check_response(self, response):
         """
         Post process web request response
         :param response: web request response
         :return: json object content
         """
+        content = None
+        self._content = None
         if response:
             if response.status_code == 200:
                 # pimatic session cookies
@@ -63,7 +78,9 @@ class PimaticAPI(object):
                         if not content.get('success'):
                             # print(json.dumps(content, indent=4, ensure_ascii=False, encoding='utf-8'))
                             self.logger.error(json.dumps(content, ensure_ascii=False, encoding='utf-8'))
+                        self._content = content
                         return content
+                self._content = response.content
                 return response.content
             else:
                 self.logger.error("Response: %d" % (response.status_code))
@@ -83,6 +100,9 @@ class PimaticAPI(object):
         return url
 
     def _request(self, call, path, data=None, headers=None):
+        response = None
+        self._response = None
+        self._content = None
         try:
             self._offline = True
             self.logger.debug('Request call: [%s] with body %s' % (call.func_name, data))
@@ -92,7 +112,8 @@ class PimaticAPI(object):
             self.logger.error("Request exception: %s" % (e))
             return None
         self._offline = False
-        return self._response(response)
+        self._response = response
+        return self._check_response(response)
 
     def get(self, path):
         return self._request(requests.get, path)
@@ -143,6 +164,10 @@ class PimaticAPI(object):
 
 # region __main__
 
+
+
+
+
 if __name__ == '__main__':
 
     # server = None
@@ -165,6 +190,16 @@ if __name__ == '__main__':
         pimatic.get('/api/device/switch_alarm_system/turnOn')
         pimatic.post('/api/rules/new_rule',
                      {"rule": {"name": "new rule", "ruleString": "if pimatic is starting then log \"DUMMY\"", "active": True, "logging": True}})
+
+    with PimaticAPI() as pimatic:
+        pimatic.login('admin', 'admin')
+        # print(pimatic.authenticated)
+        pimatic.patch('/api/rules/dummy', {"rule":{"active":False}})
+        pimatic.get('/api/device/switch_alarm_system/turnOn')
+        pimatic.post('/api/rules/new_rule',
+                     {"rule": {"name": "new rule", "ruleString": "if pimatic is starting then log \"DUMMY\"", "active": True, "logging": True}})
+
+
 # endregion
 
 
