@@ -11,8 +11,14 @@ class PimaticAPI(object):
     @staticmethod
     def hide_password(msg):
         if msg:
-            msg = re.sub('\'password\': \'.*\'', '\'password\': \'*****\'', msg, re.IGNORECASE)
+            msg = re.sub('"password": ".*"', '"password": "*****"', msg, re.IGNORECASE)
         return msg
+
+    @staticmethod
+    def check_result(result, key):
+        if result is not None and result.get(key) is not None:
+            return True
+        return False
 
     def __init__(self, server="http://localhost:8080", username="admin", password="admin", logger=None):
 
@@ -35,6 +41,7 @@ class PimaticAPI(object):
         self._adapter = LogAdapter(self._logger, {'package': 'pimatic', 'callback': PimaticAPI.hide_password})
 
     def __enter__(self):
+        self.login()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -57,6 +64,18 @@ class PimaticAPI(object):
 
     @property
     def content(self): return self._content
+
+    @property
+    def devices(self):
+        if self._devices is None:
+            if not self.authenticated:
+                self.login()
+            result = self.get('/api/devices')
+            if self.check_result(result,'devices'):
+                self._devices = {}
+                for device in result['devices']:
+                    self._devices[device['id']] = device
+        return self._devices
 
     def _check_response(self, response):
         """

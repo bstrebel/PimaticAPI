@@ -4,46 +4,152 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import os, sys, uuid, logging, logging.config, json, codecs, time, datetime, pyutils, urllib
+import os, sys, re, uuid, logging, logging.config, json, codecs, time, datetime, urllib
 
-from pyutils import Options, LogAdapter, strflocal, get_logger, log_level
+from pyutils import Options, LogAdapter, strflocal, timestamp, get_logger, log_level
 from pimatic import PimaticAPI
 
-# development environment with local secrets
-try:
-    from private import *
-except ImportError:
-    pass
+def eventparms(criteria):
+    parms = {}
+    for k in criteria:
+        if criteria[k] is not None:
+            parms['criteria[' + k + ']'] = criteria[k]
+    return parms
 
-devices = {}
+def main():
 
-def check_result(result, key):
-    if result is not None and result.get(key) is not None:
-        return True
-    return False
+    from ConfigParser import ConfigParser
+    from argparse import ArgumentParser
+    from pimatic import __version__, __author__
 
-with PimaticAPI(server=PIMATIC_SERVER,
-                username=PIMATIC_USERNAME,
-                password=PIMATIC_PASSWORD) as pimatic:
+    node = {'url': None, 'username': None, 'password': None}
 
-    pimatic.login()
+    options = {
+        'config': '~/.pimatic/pimatic.cfg',
+        'window': 90,
+        'device': '.*',
+        'format': '%Y-%d-%m %H:%M:%S',
+        'loglevel_requests': 'ERROR',
+        'loglevel': 'DEBUG'
+    }
 
-    result = pimatic.get('/api/devices')
-    if check_result(result,'devices'):
-        for device in result['devices']:
-            devices[device['id']] = device
+# region Command line arguments
 
-    for id in devices:
-        print(id)
+    parser = ArgumentParser(description='pimatic-query [PimaticAPI Rev. %s (c) %s]' % (__version__, __author__))
 
-    after_spec = "2016-09-18 09:51:04"
-    after_stamp = int(time.mktime(datetime.datetime.strptime(after_spec,"%Y-%m-%d %H:%M:%S").timetuple())) * 1000
+    parser.add_argument('-c', '--config', type=str, help='use alternate configuration file(s)')
+    parser.add_argument('-s', '--secrets', type=str, help='use alternate secrets file(s)')
+    parser.add_argument('-l', '--loglevel', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                        help='debug log level')
 
-    criteria = {'criteria[deviceId]': 'switch_alarm_prealert',
-                'criteria[orderDirection]':'DESC]',
-                'criteria[after]': after_stamp}
+    parser.add_argument('-n', '--node', type=str, help='pimatic node instance')
+    parser.add_argument('-u', '--username', type=str, help='pimatic username')
+    parser.add_argument('-p', '--password', type=str, help='pimatic password')
 
-    result = pimatic.get('/api/database/device-attributes/?' + urllib.urlencode(criteria))
-    if check_result(result,'events'):
-        for event in result['events']:
-            print(strflocal(event['time']), event['time'], event['value'])
+    parser.add_argument('-d', '--device', type=str, help='device specification (regex)')
+    parser.add_argument('-v', '--invert', action='store_true', help='invert regex match')
+    parser.add_argument('-a', '--after', type=str, help='after datetime')
+    parser.add_argument('-b', '--before', type=str, help='before datetime')
+    parser.add_argument('-t', '--time', type=str, help='datetime spec ')
+    parser.add_argument('-w', '--window', type=str, help='time window')
+    parser.add_argument('-o', '--order', type=str, help='order by attribute (default: time)')
+    parser.add_argument('-r', '--reverse', action='store_true', help='reverse sort order')
+    # parser.add_argument('-f', '--offset', type=str, help='offset')
+    # parser.add_argument('-l', '--limit', type=str, help='limit')
+
+    args = parser.parse_args()
+    opts = Options(options, args, '[config]', prefix='PIMATIC')
+    config = opts.config_parser
+
+    if config is None:
+        LogAdapter(get_logger(), {'package': 'pimatic-query'}).critical("Missing configuration file!")
+        exit(1)
+
+
+    logger = LogAdapter(opts.logger, {'package': 'pimatic-query'})
+
+# endregion
+
+# region Get node configuration and logger settings
+
+    # set log level of requests module
+    logging.getLogger('requests').setLevel(log_level(opts.loglevel_requests))
+    logging.getLogger('urllib3').setLevel(log_level(opts.loglevel_requests))
+
+    logger.debug(u'Parsing configuration file %s' % (opts.config_file))
+
+    if config.has_option('options', 'secrets'):
+        secrets = config.get('options', 'secrets')
+        path = os.path.expanduser(secrets)
+        if os.path.isfile(path):
+            secret = ConfigParser()
+            secret.read(path)
+
+    if opts.node:
+        if opts.node.startswith('http'):
+            node['url']=opts.node
+        else:
+            node_section = 'node_' + opts.node
+            if secret.has_section(node_section):
+                protocol = secret.get(node_section, 'protocol')
+                server = secret.get(node_section, 'server')
+                port = secret.get(node_section, protocol + '_port')
+                node['url']=protocol + '://' + server + ':' + port
+                node['username'] = secret.get(node_section, 'username')
+                node['password'] = secret.get(node_section, 'password')
+            else:
+                logger.critical(u'Invalid node tag %s' % (node_section))
+                exit(1)
+    else:
+        logger.critical(u'Missing pimatic node specification!')
+        exit(1)
+
+    if opts.username:
+        node['username'] = opts.username
+
+    if opts.password:
+        node['password'] = opts.password
+
+# endregion
+
+    with PimaticAPI(server=node['url'],
+                    username=node['username'],
+                    password=node['password'],
+                    logger=logger) as pimatic:
+
+        # generate device list
+
+        pattern = re.compile(opts.device)
+        inverse = opts.invert
+        devices = []
+        for id in pimatic.devices:
+            if inverse:
+                if not pattern.search(id): devices.append(id)
+            else:
+                if pattern.search(id): devices.append(id)
+        devices.sort()
+        # for id in devices: print(id)
+
+        criteria = {'deviceId': None, 'order': 'time', 'attributeName': None, 'after': None, 'before': None,
+                    'orderDirection': None, 'offset': None, 'limit': None}
+
+        criteria['after'] = timestamp(opts.after) * 1000
+
+        if len(devices) == 1:
+            criteria['deviceId'] = devices[0]
+
+        result = pimatic.get('/api/database/device-attributes/?' + urllib.urlencode(eventparms(criteria)))
+        if pimatic.check_result(result,'events'):
+            for event in result['events']:
+                print(strflocal(event['time']), event['time'], event['value'])
+
+        # deviceId, attributeName, type, time, value
+
+# region __Main__
+
+if __name__ == '__main__':
+
+    main()
+    exit(0)
+
+# endregion
