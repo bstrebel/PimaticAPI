@@ -28,6 +28,7 @@ def main():
         'config': '~/.pimatic/pimatic.cfg',
         'window': 90,
         'device': '.*',
+        'exclude': '(weather|sunrise|forecast|bmp|syssensor)',
         'format': '%Y-%d-%m %H:%M:%S',
         'loglevel_requests': 'ERROR',
         'loglevel': 'DEBUG'
@@ -48,6 +49,7 @@ def main():
 
     parser.add_argument('-d', '--device', type=str, help='device specification (regex)')
     parser.add_argument('-v', '--invert', action='store_true', help='invert regex match')
+    parser.add_argument('-x', '--exclude', type=str, help='device specification (regex)')
     parser.add_argument('-a', '--after', type=str, help='after datetime')
     parser.add_argument('-b', '--before', type=str, help='before datetime')
     parser.add_argument('-t', '--time', type=str, help='datetime spec ')
@@ -118,30 +120,57 @@ def main():
                     logger=logger) as pimatic:
 
         # generate device list
-
-        pattern = re.compile(opts.device)
+        pattern = None
+        exclude = None
+        if opts.device:
+            pattern = re.compile(opts.device)
+        if opts.exclude:
+            exclude = re.compile(opts.exclude)
         inverse = opts.invert
         devices = []
         for id in pimatic.devices:
-            if inverse:
-                if not pattern.search(id): devices.append(id)
-            else:
-                if pattern.search(id): devices.append(id)
+            if exclude is not None:
+                if not exclude.search(id):
+                    if pattern is not None:
+                        if inverse:
+                            if not pattern.search(id): devices.append(id)
+                        else:
+                            if pattern.search(id): devices.append(id)
+                    else:
+                        devices.append(id)
         devices.sort()
         # for id in devices: print(id)
 
         criteria = {'deviceId': None, 'order': 'time', 'attributeName': None, 'after': None, 'before': None,
                     'orderDirection': None, 'offset': None, 'limit': None}
 
-        criteria['after'] = timestamp(opts.after) * 1000
+        if opts.after:
+            criteria['after'] = timestamp(opts.after) * 1000
+
+        if opts.before:
+            criteria['before'] = timestamp(opts.before) * 1000
 
         if len(devices) == 1:
             criteria['deviceId'] = devices[0]
 
+        events = []
+
         result = pimatic.get('/api/database/device-attributes/?' + urllib.urlencode(eventparms(criteria)))
         if pimatic.check_result(result,'events'):
             for event in result['events']:
-                print(strflocal(event['time']), event['time'], event['value'])
+                id = event['deviceId']
+                if exclude is not None:
+                    if not exclude.search(id):
+                        if pattern is not None:
+                            if inverse:
+                                if not pattern.search(id): events.append(event)
+                            else:
+                                if pattern.search(id): events.append(event)
+                        else:
+                            events.append(event)
+
+            for event in events:
+                print(strflocal(event['time']), event['time'], event['deviceId'], event['attributeName'], event['value'])
 
         # deviceId, attributeName, type, time, value
 
