@@ -3,6 +3,10 @@
 # pimatic api scripting library
 #
 
+[ -f ~/.pimatic/pimatic.conf ] && source ~/.pimatic/pimatic.conf || {
+    [ -f /usr/local/etc/pimatic.conf ] && source /usr/local/etc/pimatic.conf
+}
+
 # pimatic root directory with config.json
 [ "$PIMATIC_ROOT" ] || PIMATIC_ROOT=$( pwd )
 

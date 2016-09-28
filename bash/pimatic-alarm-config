@@ -4,10 +4,8 @@
 #
 # set -x
 
-for incl in . ../lib /usr/local/lib
-do
-    [ -f $incl/pimatic.incl ] && { source $incl/pimatic.incl ; break ; }
-done
+# load pimatic library and credentials
+[ -f pimatic.incl ] && source pimatic.incl || source /usr/local/lib/pimatic.incl || exit
 
 ALARM="switch_alarm_system"
 CHECK="rule_alarm-check"

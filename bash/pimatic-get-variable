@@ -1,9 +1,8 @@
 #!/bin/bash
 [ "$1" ] && VAR="$1" || exit
-source /usr/local/etc/pimatic.conf || exit
-source /usr/local/lib/pimatic.incl || exit
-RESPONSE=$(pimatic_get /api/variables/$VAR) || exit
-RESULT=$(echo $RESPONSE | jq -r '.success')
-[ "$RESULT" == "true" ] && VALUE=$(echo $RESPONSE | jq -r '.variable.value') || VALUE=""
-[ "$VALUE" == "null"  ] && VALUE="" 
-echo $VALUE
+
+# load pimatic library and credentials
+[ -f pimatic.incl ] && source pimatic.incl || source /usr/local/lib/pimatic.incl || exit
+
+VALUE=$(pimatic_get /api/variables/$VAR | jq -r '.variable.value') || exit
+[ "$VALUE" == "null"  ] && echo "" || echo VALUE
