@@ -20,6 +20,14 @@ class PimaticAPI(object):
             return True
         return False
 
+    @staticmethod
+    def eventparms(criteria):
+        parms = {}
+        for k in criteria:
+            if criteria[k] is not None:
+                parms['criteria[' + k + ']'] = criteria[k]
+        return parms
+
     def __init__(self, server="http://localhost:8080", username="admin", password="admin", logger=None):
 
         self._server = server
@@ -32,6 +40,7 @@ class PimaticAPI(object):
         self._content = None
 
         self._devices = None
+        self._rules = None
 
         if logger is None:
             self._logger = get_logger('pimatic', logging.DEBUG)
@@ -76,6 +85,19 @@ class PimaticAPI(object):
                 for device in result['devices']:
                     self._devices[device['id']] = device
         return self._devices
+
+    @property
+    def rules(self):
+        if self._devices is None:
+            if not self.authenticated:
+                self.login()
+            result = self.get('/api/rules')
+            if self.check_result(result,'rules'):
+                self._rules = {}
+                for rule in result['rules']:
+                    self._rules[rule['id']] = rule
+        return self._rules
+
 
     def _check_response(self, response):
         """
