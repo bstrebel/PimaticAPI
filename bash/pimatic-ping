@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# check switch response
+
+# dummy RF device
+SWITCH=switch_20
+
+function update() {
+
+    local state="$1" date=$(date "+%Y-%m-%d %H:%M:%S")
+    pimatic_set_variable alarmPingCheckDate "$date" || exit
+    pimatic_set_variable alarmPingCheckState "$state"
+}
+
+# load pimatic library and credentials
+[ -f pimatic.incl ] && source pimatic.incl || source /usr/local/lib/pimatic.incl || exit 1
+
+# check current state
+update "Check ..."
+STATE=$(pimatic_get /api/devices/switch_20 | jq '.device.attributes[].value') || exit 2
+case $STATE in
+false) OPERATION=turnOn ;;
+true) OPERATION=turnOff ;;
+*)    echo "State request for $SWITCH failed!" 1>@2 ; exit 3 ;;
+esac
+
+# turn on/off dummy switch device
+update "Switch ${OPERATION//turn/} ..."
+if pimatic_get /api/device/$SWITCH/$OPERATION >/dev/null
+then
+    update "Success"
+    exit 0
+else
+    update "Failed"
+    echo "Operation $OPERATION for $SWITCH failed!" 1>&2
+    exit 4
+fi

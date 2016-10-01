@@ -3,7 +3,11 @@
 # pimatic api scripting library
 #
 
+PIMATIC_INCL_REV="0.9.0"
+
+# try to load pimatic credentials from configuration file before paring config.json
 [ -f ~/.pimatic/pimatic.conf ] && source ~/.pimatic/pimatic.conf || {
+
     [ -f /usr/local/etc/pimatic.conf ] && source /usr/local/etc/pimatic.conf
 }
 
@@ -19,6 +23,10 @@
 [ "$PIMATIC_URL" ] || {
 	PIMATIC_URL="http://localhost:$PIMATIC_PORT"
 }
+
+###########################
+### low level api calls ###
+###########################
 
 function pimatic_get() {
 
@@ -50,7 +58,23 @@ function pimatic_patch() {
 	
 	RESULT=$( curl --silent --user "$PIMATIC_USER"	--header "Content-Type:application/json" --header "Accept:application/json" --request PATCH	--data "$data" ${PIMATIC_URL}${path} )
 	echo "$RESULT" && [ $(echo $RESULT | jq -r '.success') == 'true' ] && return 0 || return 1
-
 }
 
+#########################################
+### high level wrappers for api calls ###
+#########################################
 
+function pimatic_get_variable() {
+
+    local var="$1" val=""
+
+    val=$(pimatic_get /api/variables/$var | jq -r '.variable.value') || return
+    [ "$val" == "null"  ] && echo "" || echo $val
+}
+
+function pimatic_set_variable() {
+
+    local var="$1" val="$2"
+
+    RESULT=$(pimatic_patch /api/variables/$var "{\"type\": \"value\", \"valueOrExpression\": \"$val\"}") || return
+}
