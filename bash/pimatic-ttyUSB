@@ -1,0 +1,17 @@
+#!/bin/bash
+#
+# create symbolic link to homeduino and mysensor ports used in by pimatic
+#
+
+HOMEDUINO_PORT="usb 4-1"
+MYSENSORS_PORT="usb 1-1.2"
+
+HOMEDUINO_DEV=$(dmesg | egrep "${HOMEDUINO_PORT}.*ttyUSB[01]$" | sed -e 's/^.*\(ttyUSB[01]\)$/\1/')
+MYSENSORS_DEV=$(dmesg | egrep "${MYSENSORS_PORT}.*ttyUSB[01]$" | sed -e 's/^.*\(ttyUSB[01]\)$/\1/')
+
+cd /dev
+[ "$HOMEDUINO_DEV" ] && ln -sf $HOMEDUINO_DEV homeduino
+[ "$MYSENSORS_DEV" ] && ln -sf $MYSENSORS_DEV mysensors
+
+exit 0
+
