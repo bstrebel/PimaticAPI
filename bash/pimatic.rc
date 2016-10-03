@@ -1,0 +1,44 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          pimatic
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: pimatic service
+# Description:       pimatic home automation framework init.d script for debian systems.
+### END INIT INFO
+
+# Author: Oliver Schneider <oliverschneider89+sweetpi@gmail.com>
+# Install:
+# cp pimatic-init-d /etc/init.d/pimatic
+# chmod +x /etc/init.d/pimatic
+# chown root:root /etc/init.d/pimatic
+# update-rc.d pimatic defaults
+# Make sure the pimatic.js file is linked in one of the pathes in the PATH variable below.
+# The node.js binary must be in the PATH, too.
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin
+
+if [ "$1" = "start" ] || [ "$1" = "stop" ] || [ "$1" = "restart" ] || [ "$1" = "status" ] 
+then
+	if [ "$1" = "start" ]
+	then
+		/usr/local/sbin/pimatic-ttyUSB
+	fi
+	export PIMATIC_ROOT=/opt/pimatic/core
+	cd $PIMATIC_ROOT
+	node_modules/pimatic/pimatic.js $1
+	error=$?
+	if [ "$1" = "stop" ]
+	then
+		[ -f "pimatic-database.sqlite-wal" ] || {
+			STAMP=$(date "+%Y-%m-%d_%H%M%S")
+			cp pimatic-database.sqlite ${STAMP}_pimatic.sqlite && ln -s ${STAMP}_pimatic.sqlite pimatic-current.sqlite
+		}
+	fi	
+	exit $error
+else 
+	echo "Usage: service pimatic {start|stop|status|restart}" >&2
+	exit 3
+fi
