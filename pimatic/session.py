@@ -88,7 +88,7 @@ class PimaticAPI(object):
 
     @property
     def rules(self):
-        if self._devices is None:
+        if self._rules is None:
             if not self.authenticated:
                 self.login()
             result = self.get('/api/rules')
