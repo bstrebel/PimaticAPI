@@ -202,6 +202,25 @@ class PimaticAPI(object):
         self._cookies = None
         self.logger.debug("User %s logged out!" % (self._username))
 
+    def variable(self, var, value=None):
+
+        if not self.authenticated:
+            self.login()
+
+        if value:
+            self.logger.debug(u'Set [{}] to [{}]'.format(var, value))
+            result = self.patch('/api/variables/{}'.format(var), {"type": "value", "valueOrExpression": value})
+        else:
+            self.logger.debug(u'Requesting value of [{}]'.format(var))
+            result = self.get('/api/variables/{}'.format(var))
+
+        # {u'variable': {u'readonly': False, u'unit': u'', u'type': u'value', u'name': u'alarmProfile', u'value': u'XXX'},
+        #  u'success': True}
+
+        if result and result.get('variable'):
+            return result['variable'].get('value')
+
+        return None
 
 # region __main__
 
