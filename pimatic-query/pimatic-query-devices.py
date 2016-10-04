@@ -6,7 +6,7 @@ from __future__ import print_function
 
 import os, sys, re, uuid, logging, logging.config, json, codecs, time, datetime, urllib
 
-from pyutils import Options, LogAdapter, strflocal, localfstr, get_logger, log_level
+from pyutils import Options, LogAdapter, strflocal, localfstr, get_logger, log_level, utf8, string
 from pimatic import PimaticAPI
 
 
@@ -148,7 +148,7 @@ def main():
                                          device['name'],
                                          device['cname'],
                                          id=width['id'], name=width['name'], cname=width['cname'])
-            print(short)
+            print(string(short))
 
 
 # region __Main__
