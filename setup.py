@@ -16,6 +16,5 @@ setup(
     author_email='b.strebel@digitec.de',
     description='Python PimaticAPI',
     long_description=open('README.md').read(),
-    install_requires=['PyUtils']
-    # entry_points={'console_scripts': ['pimatic-query = pimatic-query.pimatic-query:main']}
+    install_requires=['PyUtils'],
 )

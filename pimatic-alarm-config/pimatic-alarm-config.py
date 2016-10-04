@@ -136,13 +136,36 @@ def main():
             exit(3)
 
         rule_string = pimatic.rules.get(opts.check)['string']
-        rule_when, rest = rule_string.split('[')
-        rest, rule_then = rule_string.split(']')
-        rule_condition = u''
-
         logger.debug(u'{}: {}'.format(opts.check, rule_string))
 
-        #TODO: alarm check => always lock, profile => [undefined], locked => 1, lockedDevice = ''
+        if '[' in rule_string:
+            rule_when, rest = rule_string.split('[')
+            rest, rule_then = rule_string.split(']')
+        else:
+            m = re.match('(.* pressed and if )(.*)( then .*)', rule_string)
+            rule_when, rest, rule_then = m.groups()
+
+        rule_condition = u''
+
+        if pimatic.variable('alarmProfile', u'undefined') is None:
+            logger.critical(u'Error patching [$alarmProfile]')
+            exit(4)
+
+        if pimatic.variable('alarmLocked', 1) is None:
+            logger.critical(u'Error patching [alarmLocked]')
+            exit(5)
+
+        if pimatic.variable('alarmLockedDevice', u'') is None:
+            logger.critical(u'Error patching [$alarmLockedDevice]')
+            exit(5)
+
+        # create temporary rule
+        rule_button = rule_when.split()[1]
+        rule_undefined = u'when {} is pressed and if [$alarmProfile = "undefined"] then set $alarmLocked = 1'.format(rule_button)
+        result = pimatic.patch('/api/rules/{}'.format(opts.check), {"rule": {"ruleString": rule_undefined}})
+        if not result:
+            logger.critical(u'Error patching [{}]'.format(opts.check))
+            exit(7)
 
         for contact in contacts:
 
@@ -162,11 +185,11 @@ def main():
                     if pimatic.rules.get(rule)['active'] != state:
                         result = pimatic.patch('/api/rules/{}'.format(rule), {"rule": {"active": state}})
                         if not result:
-                            logger.error(u'Error patching rule [{}]'.format(rule))
-                            continue
+                            logger.critical(u'Error patching rule [{}]'.format(rule))
+                            exit(5)
                 else:
-                    logger.error(u'Missung rule [{}]'.format(rule))
-                    continue
+                    logger.critical(u'Missung rule [{}]'.format(rule))
+                    exit(6)
 
             if state:
                 rule_condition = rule_condition + contact + u' is closed and '
@@ -181,6 +204,7 @@ def main():
             logger.error(u'Error patching [{}]'.format(opts.check))
 
         # TODO: profile => args.profile, locked => 0
+        pimatic.variable('alarmProfile', args.profile)
 
         logger.info(u'Profile [{}] activated'.format(args.profile))
 
