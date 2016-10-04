@@ -20,25 +20,38 @@
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
-if [ "$1" = "start" ] || [ "$1" = "stop" ] || [ "$1" = "restart" ] || [ "$1" = "status" ] 
-then
-	if [ "$1" = "start" ]
-	then
-		/usr/local/sbin/pimatic-ttyUSB
-	fi
-	export PIMATIC_ROOT=/opt/pimatic/core
-	cd $PIMATIC_ROOT
-	node_modules/pimatic/pimatic.js $1
-	error=$?
-	if [ "$1" = "stop" ]
-	then
-		[ -f "pimatic-database.sqlite-wal" ] || {
-			STAMP=$(date "+%Y-%m-%d_%H%M%S")
-			cp pimatic-database.sqlite ${STAMP}_pimatic.sqlite && ln -s ${STAMP}_pimatic.sqlite pimatic-current.sqlite
-		}
-	fi	
-	exit $error
-else 
-	echo "Usage: service pimatic {start|stop|status|restart}" >&2
-	exit 3
-fi
+export PIMATIC_ROOT=/opt/pimatic/core
+cd $PIMATIC_ROOT
+
+ERROR=0
+
+do_start() {
+
+    /usr/local/sbin/pimatic-ttyUSB
+
+    node_modules/pimatic/pimatic.js start
+    ERROR=$?
+}
+
+do_stop() {
+
+	node_modules/pimatic/pimatic.js stop
+	ERROR=$?
+
+    [ -f "pimatic-database.sqlite-wal" ] || {
+        STAMP=$(date "+%Y-%m-%d_%H%M%S")
+        cp pimatic-database.sqlite ${STAMP}_pimatic.sqlite && ln -sf ${STAMP}_pimatic.sqlite pimatic-current.sqlite
+    }
+}
+
+case "$1" in
+
+    start)      do_start ;;
+    stop)       do_stop  ;;
+    restart)    do_stop  && sleep 5 && do_start ;;
+    status)     node_modules/pimatic/pimatic.js status ; ERROR=$? ;;
+    *) 	        echo "Usage: service pimatic {start|stop|status|restart}" >&2 ; ERROR=3 ;;
+
+esac
+
+exit $ERROR
