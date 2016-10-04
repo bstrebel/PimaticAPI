@@ -205,10 +205,6 @@ class PimaticAPI(object):
 
 # region __main__
 
-
-
-
-
 if __name__ == '__main__':
 
     # server = None
