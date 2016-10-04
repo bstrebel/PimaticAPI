@@ -14,13 +14,16 @@ function update() {
 # load pimatic library and credentials
 [ -f pimatic.incl ] && source pimatic.incl || source /usr/local/lib/pimatic.incl || exit 1
 
+# return silently if service is not available (e.g. during reboot)
+pimatic_alive || exit 0
+
 # check current state
 update "Check ..."
 STATE=$(pimatic_get /api/devices/switch_20 | jq '.device.attributes[].value') || exit 2
 case $STATE in
 false) OPERATION=turnOn ;;
 true) OPERATION=turnOff ;;
-*)    echo "State request for $SWITCH failed!" 1>@2 ; exit 3 ;;
+*)    echo "State request for $SWITCH failed!" >&2 ; exit 3 ;;
 esac
 
 # turn on/off dummy switch device
@@ -31,6 +34,6 @@ then
     exit 0
 else
     update "Failed"
-    echo "Operation $OPERATION for $SWITCH failed!" 1>&2
+    echo "Operation $OPERATION for $SWITCH failed!" >&2
     exit 4
 fi
