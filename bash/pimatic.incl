@@ -3,7 +3,7 @@
 # pimatic api scripting library
 #
 
-PIMATIC_INCL_REV="0.9.0"
+PIMATIC_INCL_REV="0.9.1"
 
 # try to load pimatic credentials from configuration file before paring config.json
 [ -f ~/.pimatic/pimatic.conf ] && source ~/.pimatic/pimatic.conf || {
@@ -28,12 +28,19 @@ PIMATIC_INCL_REV="0.9.0"
 ### low level api calls ###
 ###########################
 
+function check_result() {
+
+	echo "$1" && [ "$(echo $1 | jq -r '.success')" == "true" ]
+}
+
+###########################
+
 function pimatic_get() {
 
 	local path="$1"
 
 	RESULT="$( curl --silent --user "$PIMATIC_USER" --request GET ${PIMATIC_URL}${path} )" || return $?
-	echo "$RESULT" && [ $(echo $RESULT | jq -r '.success') == 'true' ] && return 0 || return 1
+    check_result "$RESULT"
 }
 
 function pimatic_delete() {
@@ -41,7 +48,7 @@ function pimatic_delete() {
 	local path="$1"
 
 	RESULT=$( curl --silent --user "$PIMATIC_USER" --request DELETE ${PIMATIC_URL}${path} )
-	echo "$RESULT" && [ $(echo $RESULT | jq -r '.success') == 'true' ] && return 0 || return 1
+    check_result "$RESULT"
 }
 
 function pimatic_post() {
@@ -49,7 +56,7 @@ function pimatic_post() {
 	local path="$1" data="$2"	
 	
 	RESULT=$( curl --silent --user "$PIMATIC_USER" --header "Content-Type:application/json" --header "Accept:application/json" --request POST --data "$data" ${PIMATIC_URL}${path} )
-	echo "$RESULT" && [ $(echo $RESULT | jq -r '.success') == 'true' ] && return 0 || return 1
+    check_result "$RESULT"
 }
 
 function pimatic_patch() {
@@ -57,7 +64,7 @@ function pimatic_patch() {
 	local path="$1" data="$2"	
 	
 	RESULT=$( curl --silent --user "$PIMATIC_USER"	--header "Content-Type:application/json" --header "Accept:application/json" --request PATCH	--data "$data" ${PIMATIC_URL}${path} )
-	echo "$RESULT" && [ $(echo $RESULT | jq -r '.success') == 'true' ] && return 0 || return 1
+    check_result "$RESULT"
 }
 
 #########################################
@@ -77,4 +84,9 @@ function pimatic_set_variable() {
     local var="$1" val="$2"
 
     RESULT=$(pimatic_patch /api/variables/$var "{\"type\": \"value\", \"valueOrExpression\": \"$val\"}") || return
+}
+
+function pimatic_alive() {
+
+    netstat -atnp | grep -q ":::$PIMATIC_PORT"
 }
