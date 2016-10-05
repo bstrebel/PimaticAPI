@@ -108,8 +108,14 @@ def main():
 
 
     if config.has_section('profile_' + args.profile):
+
         section = 'profile_' + args.profile
+
+        # ??? contacts = dict(config.items(section))
+        # ??? dictionary contains options from multiple sections ???
+
         contacts = dict(config._sections[section])
+        # ??? dictionary contains __len__ and __name__ metdate ???
     else:
         logger.critical(u'Profile [{}] not found!'.format(args.profile))
         exit(1)
@@ -159,13 +165,15 @@ def main():
             logger.critical(u'Error patching [$alarmLockedDevice]')
             exit(5)
 
-        # create temporary rule
+        # create temporary alarm check rule: prevent alarm system activation if profile is "undefined"
         rule_button = rule_when.split()[1]
         rule_undefined = u'when {} is pressed and if [$alarmProfile = "undefined"] then set $alarmLocked = 1'.format(rule_button)
         result = pimatic.patch('/api/rules/{}'.format(opts.check), {"rule": {"ruleString": rule_undefined}})
         if not result:
             logger.critical(u'Error patching [{}]'.format(opts.check))
             exit(7)
+
+        devices = []
 
         for contact in contacts:
 
@@ -178,6 +186,8 @@ def main():
 
             # device name magic ...
             device = contact.replace('contact_', '')
+            if state:
+                devices.append(device)
             device = device.replace('_','-')
             for prefix in ['alert', 'locked', 'unlock']:
                 rule = u'rule_alarm-{}-{}'.format(prefix, device)
@@ -194,6 +204,8 @@ def main():
             if state:
                 rule_condition = rule_condition + contact + u' is closed and '
 
+        devices.sort()
+
         rule_condition = rule_condition[:-5]
         rule_string = u'{}[{}]{}'.format(rule_when, rule_condition, rule_then)
 
@@ -201,11 +213,13 @@ def main():
 
         result = pimatic.patch('/api/rules/{}'.format(opts.check), {"rule": {"ruleString": rule_string}})
         if not result:
-            logger.error(u'Error patching [{}]'.format(opts.check))
+            logger.critical(u'Error patching [{}]'.format(opts.check))
+            exit(7)
 
         # TODO: profile => args.profile, locked => 0
         pimatic.variable('alarmProfile', args.profile)
 
+        print('{}: {}'.format(args.profile, devices))
         logger.info(u'Profile [{}] activated'.format(args.profile))
 
 
