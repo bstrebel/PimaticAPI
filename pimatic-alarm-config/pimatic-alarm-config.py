@@ -110,12 +110,7 @@ def main():
     if config.has_section('profile_' + args.profile):
 
         section = 'profile_' + args.profile
-
-        # ??? contacts = dict(config.items(section))
-        # ??? dictionary contains options from multiple sections ???
-
-        contacts = dict(config._sections[section])
-        # ??? dictionary contains __len__ and __name__ metdate ???
+        contacts = opts.keys(section)
     else:
         logger.critical(u'Profile [{}] not found!'.format(args.profile))
         exit(1)
@@ -176,9 +171,6 @@ def main():
         devices = []
 
         for contact in contacts:
-
-            # skip meta data from ordered dict representation of config section
-            if contact == '__len__' or contact == '__name__': continue
 
             state = config.getboolean(section, contact)
 
