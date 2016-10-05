@@ -1,4 +1,4 @@
-#! /bin/sh
+h#! /bin/sh
 ### BEGIN INIT INFO
 # Provides:          pimatic
 # Required-Start:    $remote_fs $syslog
@@ -41,6 +41,7 @@ do_stop() {
     [ -f "pimatic-database.sqlite-wal" ] || {
         STAMP=$(date "+%Y-%m-%d_%H%M%S")
         cp pimatic-database.sqlite ${STAMP}_pimatic.sqlite && ln -sf ${STAMP}_pimatic.sqlite pimatic-current.sqlite
+        cp config.json ${STAMP}_config.json && ln -sf ${STAMP}_config.json config-current.json
     }
 }
 
