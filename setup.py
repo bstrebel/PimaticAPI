@@ -16,5 +16,5 @@ setup(
     author_email='b.strebel@digitec.de',
     description='Python PimaticAPI',
     long_description=open('README.md').read(),
-    install_requires=['PyUtils'],
+    install_requires=['PyUtils>=0.5.0'],
 )

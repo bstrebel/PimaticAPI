@@ -33,6 +33,7 @@ then
     update "Success"
     exit 0
 else
+	date=$(date "+%Y-%m-%d %H:%M:%S")
     pimatic_set_variable alarmPingRestart "$date"
     update "Failed"
     echo "Operation $OPERATION for $SWITCH failed!" >&2
