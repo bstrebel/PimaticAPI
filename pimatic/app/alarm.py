@@ -75,6 +75,9 @@ class PimaticAlarmConfigApp(PimaticApp):
                 logger.critical(u'Error patching [$alarmProfile]')
                 exit(4)
 
+            alarmLocked = pimatic.variable('alarmLocked')
+            alarmLockedDevice = pimatic.variable('alarmLockedDevice')
+
             if pimatic.variable('alarmLocked', 1) is None:
                 logger.critical(u'Error patching [alarmLocked]')
                 exit(5)
@@ -134,9 +137,13 @@ class PimaticAlarmConfigApp(PimaticApp):
 
             pimatic.variable('alarmProfile', self._args.profile)
 
-            if pimatic.variable('alarmLocked', 0) is None:
+            if pimatic.variable('alarmLocked', alarmLocked) is None:
                 logger.critical(u'Error patching [alarmLocked]')
                 exit(8)
+
+            if pimatic.variable('alarmLockedDevice', alarmLockedDevice) is None:
+                logger.critical(u'Error patching [$alarmLockedDevice]')
+                exit(9)
 
             print('{}: {}'.format(self._args.profile, devices))
             logger.info(u'Profile [{}] activated'.format(self._args.profile))
