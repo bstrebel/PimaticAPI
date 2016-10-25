@@ -9,7 +9,7 @@ version = re.search(
 setup(
     name='PimaticAPI',
     version=version,
-    packages=['pimatic'],
+    packages=['pimatic','pimatic.app'],
     url='https://github.com/bstrebel/PimaticAPI',
     license='GPL2',
     author='Bernd Strebel',
@@ -17,4 +17,7 @@ setup(
     description='Python PimaticAPI',
     long_description=open('README.md').read(),
     install_requires=['PyUtils>=0.5.0'],
+    entry_points={'console_scripts': ['pimatic-events = pimatic.app.events:main',
+                                      'pimatic-devices = pimatic.app.devices:main',
+                                      'pimatic-alarm = pimatic.app.alarm:main']}
 )
