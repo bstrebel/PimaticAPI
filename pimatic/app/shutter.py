@@ -13,7 +13,7 @@ class PimaticAlarmShutterApp(PimaticApp):
 
     options = {
         'app': 'PimaticAlarmShutterApp',
-        'rev': '0.9.5',
+        'rev': '0.9.6',
         'config': '~/.pimatic/pimatic.cfg,~/.pimatic/alarm.cfg',
         'state': 'disabled',
         'loglevel_requests': 'ERROR',
@@ -46,7 +46,7 @@ class PimaticAlarmShutterApp(PimaticApp):
                     ruleId = u'rule_alarm-alert-shutter-{}'.format(shutter)
                     rule = pimatic.rules.get(ruleId)
                     if rule:
-                        active = (closed and (self._args.state == 'enabled'))
+                        active = (closed and (self._args.state.lower() == 'enabled'))
                         if rule['active'] != active:
                             result = pimatic.patch('/api/rules/{}'.format(ruleId), {"rule": {"active": active}})
                             if not result:
