@@ -15,6 +15,7 @@ class PimaticAlarmShutterApp(PimaticApp):
         'app': 'PimaticAlarmShutterApp',
         'rev': '0.9.6',
         'config': '~/.pimatic/pimatic.cfg,~/.pimatic/alarm.cfg',
+        'shutter': '',
         'state': 'disabled',
         'loglevel_requests': 'ERROR',
         'loglevel': 'DEBUG'
@@ -31,7 +32,14 @@ class PimaticAlarmShutterApp(PimaticApp):
         opts = self._opts
         logger = self._logger
 
+        if not opts.shutter:
+            return 0
+
         shutters = opts.shutter.split(',')
+
+        if not shutters[0]:
+            return 0
+
         logger.debug(u'Shutter alarm [{}] for [{}]'.format(self._args.state, opts.shutter))
 
         session = self.session()
@@ -62,6 +70,8 @@ class PimaticAlarmShutterApp(PimaticApp):
                 else:
                     logger.critical(u'Missung device [{}]'.format(deviceId))
                     exit(2)
+
+        return 0
 
 # region __Main__
 def main():
