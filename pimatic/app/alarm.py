@@ -13,9 +13,10 @@ class PimaticAlarmConfigApp(PimaticApp):
 
     options = {
         'app': 'PimaticAlarmConfigApp',
-        'rev': '0.9.5',
+        'rev': '0.9.6',
         'config': '~/.pimatic/pimatic.cfg,~/.pimatic/alarm.cfg',
         'profile': 'default',
+        'auto': False,
         'loglevel_requests': 'ERROR',
         'loglevel': 'DEBUG'
     }
@@ -23,7 +24,10 @@ class PimaticAlarmConfigApp(PimaticApp):
     def __init__(self):
 
         super(PimaticAlarmConfigApp, self).__init__(self.options)
+
+        self._parser.add_argument('-a', '--auto', action='store_true', help='check state of contact devices')
         self._parser.add_argument('profile', nargs='?', default='default')
+
         self.parse()
 
     def run(self):
@@ -101,6 +105,10 @@ class PimaticAlarmConfigApp(PimaticApp):
             for contact in contacts:
 
                 state = self._config.getboolean(section, contact)
+
+                if opts.auto:
+                    closed = pimatic.devices.get(contact)[u'attributes'][0]['value']
+                    state = state and closed
 
                 logger.info(u'{}: {}'.format(contact, state))
 
