@@ -13,6 +13,7 @@ class PimaticDevicesApp(PimaticApp):
 
     options = {
         'app': 'PimaticDevicesApp',
+        'rev': '0.9.5',
         'config': '~/.pimatic/pimatic.cfg,~/.pimatic/devices.cfg',
         'device': '.*',
         'loglevel_requests': 'ERROR',

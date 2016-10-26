@@ -13,6 +13,7 @@ class PimaticAlarmShutterApp(PimaticApp):
 
     options = {
         'app': 'PimaticAlarmShutterApp',
+        'rev': '0.9.5',
         'config': '~/.pimatic/pimatic.cfg,~/.pimatic/alarm.cfg',
         'state': 'disabled',
         'loglevel_requests': 'ERROR',

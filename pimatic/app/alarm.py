@@ -13,6 +13,7 @@ class PimaticAlarmConfigApp(PimaticApp):
 
     options = {
         'app': 'PimaticAlarmConfigApp',
+        'rev': '0.9.5',
         'config': '~/.pimatic/pimatic.cfg,~/.pimatic/alarm.cfg',
         'profile': 'default',
         'loglevel_requests': 'ERROR',

@@ -13,6 +13,7 @@ class PimaticEventsApp(PimaticApp):
 
     options = {
         'app': 'PimaticEventsApp',
+        'rev': '0.9.5',
         'config': '~/.pimatic/pimatic.cfg,~/.pimatic/events.cfg',
         'window': '90s',
         'device': '.*',
